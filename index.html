@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>자판기 재고 수량 확인 앱</title>
+  <title>지도 기반 자판기 재고 확인 앱</title>
+  
+  <!-- Leaflet OpenStreetMap CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
     :root {
       --bg-color: #f7f4ee;
@@ -25,83 +29,52 @@
       background-color: var(--bg-color);
       color: var(--text-color);
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 20px 10px;
     }
 
     .container {
       background-color: var(--card-bg);
       width: 100%;
-      max-width: 500px;
-      padding: 32px 24px;
+      max-width: 800px;
+      padding: 24px;
       border-radius: 16px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
       border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     h1 {
       font-size: 1.5rem;
       font-weight: 700;
       text-align: center;
-      margin-bottom: 24px;
       color: var(--primary-color);
     }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 24px;
+    .info-text {
+      font-size: 0.9rem;
+      text-align: center;
+      color: #78716c;
     }
 
-    input[type="text"] {
+    #map {
       width: 100%;
-      padding: 14px 16px;
-      font-size: 1rem;
+      height: 400px;
+      border-radius: 12px;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      outline: none;
-      background-color: #fafaf9;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    input[type="text"]:focus {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
-      background-color: #ffffff;
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      font-size: 1rem;
-      font-weight: 600;
-      color: #ffffff;
-      background-color: var(--primary-color);
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-
-    button:hover {
-      background-color: var(--primary-hover);
-    }
-
-    button:disabled {
-      background-color: #a8a29e;
-      cursor: not-allowed;
+      z-index: 1;
     }
 
     .result-container {
-      margin-top: 16px;
       padding: 16px;
-      border-radius: 8px;
+      border-radius: 12px;
       background-color: #fafaf9;
       border: 1px solid var(--border-color);
-      min-height: 100px;
+      min-height: 80px;
       white-space: pre-wrap;
       line-height: 1.6;
       display: none;
@@ -111,50 +84,107 @@
       display: block;
     }
 
-    .loading {
-      text-align: center;
-      color: #78716c;
-      font-style: italic;
-    }
-
     .error {
       color: #dc2626;
+    }
+
+    /* Leaflet 커스텀 마커 펄스 애니메이션 */
+    .user-location-marker {
+      background-color: #2563eb;
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(37, 99, 235, 0.6);
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>자판기 재고 수량 확인 앱</h1>
-    
-    <div class="form-group">
-      <input 
-        type="text" 
-        id="locationInput" 
-        placeholder="근처 자판기 위치를 입력하세요 (예: 강남역 2번 출구)" 
-      />
-      <button id="searchBtn">재고 확인하기</button>
-    </div>
 
+  <div class="container">
+    <h1>📍 지도 기반 자판기 재고 확인 앱</h1>
+    <p class="info-text">내 위치 주변의 자판기 마커(🥤)를 클릭하면 AI가 실시간 예상 재고를 알려줍니다.</p>
+    
+    <!-- 지도 영역 -->
+    <div id="map"></div>
+
+    <!-- 결과 영역 -->
     <div id="result" class="result-container"></div>
   </div>
 
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
   <script>
-    const locationInput = document.getElementById('locationInput');
-    const searchBtn = document.getElementById('searchBtn');
     const resultDiv = document.getElementById('result');
 
-    async function checkStock() {
-      const location = locationInput.value.trim();
-      
-      if (!location) {
-        alert('근처 자판기 위치를 입력해주세요.');
-        return;
-      }
+    // 기본 위치 (서울역) - 위치 권한 실패 시 기본값
+    let userLat = 37.5547;
+    let userLng = 126.9707;
 
-      searchBtn.disabled = true;
+    // 지도 초기화
+    const map = L.map('map').setView([userLat, userLng], 16);
+
+    // OpenStreetMap 타일 레이어 추가
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 사용자 위치 및 자판기 마커 생성 함수
+    function initApp(lat, lng) {
+      map.setView([lat, lng], 16);
+
+      // 1. 내 위치 마커 (파란색 다이아몬드/원)
+      const userIcon = L.divIcon({
+        className: 'user-location-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+      L.marker([lat, lng], { icon: userIcon })
+        .addTo(map)
+        .bindPopup('<b>현재 내 위치</b>')
+        .openPopup();
+
+      // 2. 근처 가상 자판기 3곳 생성 (현재 위치 기준 일정 거리 오프셋)
+      const vendingMachines = [
+        { id: 1, name: "자판기 A호점 (음료 전용)", lat: lat + 0.0012, lng: lng + 0.0010 },
+        { id: 2, name: "자판기 B호점 (스낵/음료)", lat: lat - 0.0008, lng: lng + 0.0015 },
+        { id: 3, name: "자판기 C호점 (멀티 자판기)", lat: lat + 0.0005, lng: lng - 0.0012 }
+      ];
+
+      // 자판기 마커 추가
+      vendingMachines.forEach(vm => {
+        const marker = L.marker([vm.lat, vm.lng]).addTo(map);
+        marker.bindPopup(`<b>${vm.name}</b><br><small>클릭 시 재고 확인</small>`);
+
+        // 자판기 마커 클릭 이벤트
+        marker.on('click', () => {
+          checkStock(vm.name, vm.lat, vm.lng);
+        });
+      });
+    }
+
+    // 위치 권한 요청
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+          initApp(userLat, userLng);
+        },
+        (error) => {
+          console.warn('위치 권한을 불러올 수 없어 기본 위치로 설정합니다.', error);
+          initApp(userLat, userLng);
+        }
+      );
+    } else {
+      initApp(userLat, userLng);
+    }
+
+    // AI 재고 요청 함수
+    async function checkStock(vendingName, lat, lng) {
       resultDiv.classList.add('active');
       resultDiv.classList.remove('error');
-      resultDiv.textContent = '재고 정보를 확인하는 중입니다...';
+      resultDiv.textContent = `[${vendingName}] 재고 정보를 Gemini AI에 확인하는 중입니다...`;
 
       try {
         const response = await fetch('/api/generate', {
@@ -162,7 +192,11 @@
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ location }),
+          body: JSON.stringify({ 
+            vendingName: vendingName,
+            lat: lat,
+            lng: lng
+          }),
         });
 
         const data = await response.json();
@@ -175,17 +209,8 @@
       } catch (error) {
         resultDiv.classList.add('error');
         resultDiv.textContent = `오류 발생: ${error.message}`;
-      } finally {
-        searchBtn.disabled = false;
       }
     }
-
-    searchBtn.addEventListener('click', checkStock);
-    locationInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        checkStock();
-      }
-    });
   </script>
 </body>
 </html>

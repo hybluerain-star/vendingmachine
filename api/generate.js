@@ -3,14 +3,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
   }
 
-  const { location } = req.body;
+  const { vendingName, lat, lng } = req.body;
 
-  if (!location) {
-    return res.status(400).json({ error: '위치 정보가 필요합니다.' });
+  if (!vendingName) {
+    return res.status(400).json({ error: '자판기 정보가 필요합니다.' });
   }
 
-  // 1순위: Vercel 환경변수 (GEMINI_API_KEY)
-  // 2순위: 코드 직접 입력 키 (필요시 "YOUR_GEMINI_API_KEY_HERE" 부분에 직접 입력)
+  // Vercel 환경변수 우선 적용, 없으면 지정한 키 사용
   const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 
   if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
@@ -19,9 +18,9 @@ export default async function handler(req, res) {
     });
   }
 
-  const prompt = `사용자가 입력한 위치: "${location}"
-너는 위 장소 근처 자판기의 가상 재고 현황을 안내해주는 AI 서비스야.
-해당 위치에 어울리는 자판기 간식(음료 및 과자 종류) 4~5개를 임의로 설정하고, 각각의 현재 예상 재고 수량과 상태(여유/부족/품절)를 보기 좋게 정리해서 한국어로 답변해줘.`;
+  const prompt = `사용자가 지도에서 선택한 자판기 이름: "${vendingName}" (위도: ${lat}, 경도: ${lng})
+너는 위 자판기의 실시간 재고 현황을 알려주는 AI 가상 시스템이야.
+이 자판기의 특징(이름에 어울리는 스낵 및 음료 4~5종류)을 설정하고, 현재 예상 재고 수량과 상태(여유/부족/품절)를 깔끔하고 보기 좋게 정리해서 한국어로 답변해줘.`;
 
   try {
     const response = await fetch(
