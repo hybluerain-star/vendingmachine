@@ -16,6 +16,7 @@
       --primary-hover: #b45309;
       --text-color: #44403c;
       --border-color: #e7e5e4;
+      --accent-blue: #2563eb;
     }
 
     * {
@@ -59,6 +60,7 @@
       font-size: 0.9rem;
       text-align: center;
       color: #78716c;
+      line-height: 1.4;
     }
 
     #map {
@@ -70,30 +72,93 @@
     }
 
     .result-container {
-      padding: 16px;
+      padding: 20px;
       border-radius: 12px;
       background-color: #fafaf9;
       border: 1px solid var(--border-color);
-      min-height: 80px;
-      white-space: pre-wrap;
-      line-height: 1.6;
       display: none;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .result-container.active {
-      display: block;
+      display: flex;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .vending-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--primary-color);
+    }
+
+    .refresh-btn {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: var(--primary-color);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .refresh-btn:disabled {
+      background-color: #a8a29e;
+      cursor: not-allowed;
+    }
+
+    .loading-text {
+      color: #78716c;
+      font-style: italic;
+      text-align: center;
+      padding: 12px 0;
+    }
+
+    .stock-content {
+      line-height: 1.6;
+      font-size: 0.95rem;
     }
 
     .error {
       color: #dc2626;
+      font-weight: 500;
     }
 
-    /* Leaflet 커스텀 마커 펄스 애니메이션 */
+    /* 내 위치 마커 */
     .user-location-marker {
-      background-color: #2563eb;
+      background-color: var(--accent-blue);
       border: 2px solid white;
       border-radius: 50%;
-      box-shadow: 0 0 8px rgba(37, 99, 235, 0.6);
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+    }
+
+    /* 자판기 커스텀 마커 스타일 */
+    .vending-icon {
+      background-color: #ffffff;
+      border: 2px solid var(--primary-color);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      cursor: pointer;
     }
   </style>
 </head>
@@ -101,13 +166,22 @@
 
   <div class="container">
     <h1>📍 지도 기반 자판기 재고 확인 앱</h1>
-    <p class="info-text">내 위치 주변의 자판기 마커(🥤)를 클릭하면 AI가 실시간 예상 재고를 알려줍니다.</p>
+    <p class="info-text">
+      지도를 이동하면 새로운 지역 근처 자판기가 자동으로 탐색됩니다.<br/>
+      자판기 마커(🥤)를 클릭하여 AI 실시간 예상 재고를 확인해보세요!
+    </p>
     
     <!-- 지도 영역 -->
     <div id="map"></div>
 
     <!-- 결과 영역 -->
-    <div id="result" class="result-container"></div>
+    <div id="result" class="result-container">
+      <div class="result-header">
+        <span id="vendingTitle" class="vending-title">자판기 재고 정보</span>
+        <button id="refreshBtn" class="refresh-btn">🔄 재고 새로고침</button>
+      </div>
+      <div id="stockContent" class="stock-content"></div>
+    </div>
   </div>
 
   <!-- Leaflet JS -->
@@ -115,55 +189,93 @@
   
   <script>
     const resultDiv = document.getElementById('result');
+    const vendingTitle = document.getElementById('vendingTitle');
+    const stockContent = document.getElementById('stockContent');
+    const refreshBtn = document.getElementById('refreshBtn');
 
-    // 기본 위치 (서울역) - 위치 권한 실패 시 기본값
+    let currentSelectedVending = null;
+
+    // 기본 위치 (서울역)
     let userLat = 37.5547;
     let userLng = 126.9707;
 
     // 지도 초기화
     const map = L.map('map').setView([userLat, userLng], 16);
 
-    // OpenStreetMap 타일 레이어 추가
+    // OpenStreetMap 타일 레이어
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // 사용자 위치 및 자판기 마커 생성 함수
+    // 자판기 마커들을 저장할 그룹
+    const vendingMarkersGroup = L.layerGroup().addTo(map);
+
+    // 자판기 커스텀 아이콘
+    const vendingIcon = L.divIcon({
+      className: 'vending-icon',
+      html: '🥤',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+
+    // 지도 중심 기준으로 근처 가상 자판기 마커 생성 함수
+    function updateVendingMachinesOnMap() {
+      vendingMarkersGroup.clearLayers();
+
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+
+      // 너무 멀리 줌아웃된 경우에는 자판기를 표시하지 않음 (줌 레벨 13 이상일 때만)
+      if (zoom < 13) return;
+
+      const offset = 0.002 * (16 / Math.max(zoom, 10));
+
+      const vendingMachines = [
+        { id: 1, name: "자판기 A호점 (음료/스낵)", lat: center.lat + offset, lng: center.lng + offset },
+        { id: 2, name: "자판기 B호점 (스낵 전용)", lat: center.lat - offset * 0.8, lng: center.lng + offset * 1.2 },
+        { id: 3, name: "자판기 C호점 (멀티 자판기)", lat: center.lat + offset * 0.6, lng: center.lng - offset * 1.1 },
+        { id: 4, name: "자판기 D호점 (음료 전용)", lat: center.lat - offset * 1.1, lng: center.lng - offset * 0.7 }
+      ];
+
+      vendingMachines.forEach(vm => {
+        const marker = L.marker([vm.lat, vm.lng], { icon: vendingIcon });
+        marker.bindPopup(`<b>${vm.name}</b><br/><small>클릭하여 재고 확인</small>`);
+
+        marker.on('click', () => {
+          currentSelectedVending = vm;
+          checkStock(vm);
+        });
+
+        vendingMarkersGroup.addLayer(marker);
+      });
+    }
+
+    // 초기 앱 설정
     function initApp(lat, lng) {
       map.setView([lat, lng], 16);
 
-      // 1. 내 위치 마커 (파란색 다이아몬드/원)
+      // 내 위치 마커
       const userIcon = L.divIcon({
         className: 'user-location-marker',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
       });
       L.marker([lat, lng], { icon: userIcon })
         .addTo(map)
         .bindPopup('<b>현재 내 위치</b>')
         .openPopup();
 
-      // 2. 근처 가상 자판기 3곳 생성 (현재 위치 기준 일정 거리 오프셋)
-      const vendingMachines = [
-        { id: 1, name: "자판기 A호점 (음료 전용)", lat: lat + 0.0012, lng: lng + 0.0010 },
-        { id: 2, name: "자판기 B호점 (스낵/음료)", lat: lat - 0.0008, lng: lng + 0.0015 },
-        { id: 3, name: "자판기 C호점 (멀티 자판기)", lat: lat + 0.0005, lng: lng - 0.0012 }
-      ];
-
-      // 자판기 마커 추가
-      vendingMachines.forEach(vm => {
-        const marker = L.marker([vm.lat, vm.lng]).addTo(map);
-        marker.bindPopup(`<b>${vm.name}</b><br><small>클릭 시 재고 확인</small>`);
-
-        // 자판기 마커 클릭 이벤트
-        marker.on('click', () => {
-          checkStock(vm.name, vm.lat, vm.lng);
-        });
-      });
+      // 초기 자판기 탐색
+      updateVendingMachinesOnMap();
     }
 
-    // 위치 권한 요청
+    // 지도 이동/줌 종료 시 그 지역 근처 자판기 자동 생성
+    map.on('moveend', () => {
+      updateVendingMachinesOnMap();
+    });
+
+    // GPS 위치 요청
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -172,7 +284,6 @@
           initApp(userLat, userLng);
         },
         (error) => {
-          console.warn('위치 권한을 불러올 수 없어 기본 위치로 설정합니다.', error);
           initApp(userLat, userLng);
         }
       );
@@ -180,11 +291,13 @@
       initApp(userLat, userLng);
     }
 
-    // AI 재고 요청 함수
-    async function checkStock(vendingName, lat, lng) {
+    // AI 재고 확인 요청 함수
+    async function checkStock(vending) {
       resultDiv.classList.add('active');
-      resultDiv.classList.remove('error');
-      resultDiv.textContent = `[${vendingName}] 재고 정보를 Gemini AI에 확인하는 중입니다...`;
+      vendingTitle.textContent = `🥤 ${vending.name}`;
+      stockContent.className = 'stock-content loading-text';
+      stockContent.textContent = 'Gemini AI가 실시간 예상 재고를 확인 중입니다...';
+      refreshBtn.disabled = true;
 
       try {
         const response = await fetch('/api/generate', {
@@ -193,9 +306,9 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ 
-            vendingName: vendingName,
-            lat: lat,
-            lng: lng
+            vendingName: vending.name,
+            lat: vending.lat,
+            lng: vending.lng
           }),
         });
 
@@ -205,12 +318,22 @@
           throw new Error(data.error || '오류가 발생했습니다.');
         }
 
-        resultDiv.textContent = data.result;
+        stockContent.className = 'stock-content';
+        stockContent.innerHTML = data.result;
       } catch (error) {
-        resultDiv.classList.add('error');
-        resultDiv.textContent = `오류 발생: ${error.message}`;
+        stockContent.className = 'stock-content error';
+        stockContent.textContent = `오류 발생: ${error.message}`;
+      } finally {
+        refreshBtn.disabled = false;
       }
     }
+
+    // 새로고침 버튼 이벤트
+    refreshBtn.addEventListener('click', () => {
+      if (currentSelectedVending) {
+        checkStock(currentSelectedVending);
+      }
+    });
   </script>
 </body>
 </html>
