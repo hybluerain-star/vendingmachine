@@ -167,7 +167,7 @@
   <div class="container">
     <h1>📍 지도 기반 자판기 재고 확인 앱</h1>
     <p class="info-text">
-      지도를 이동하면 새로운 지역 근처 자판기가 자동으로 탐색됩니다.<br/>
+      지도를 축소(줌아웃)하거나 이동해도 자판기 위치는 실제 장소에 고정됩니다.<br/>
       자판기 마커(🥤)를 클릭하여 실시간 예상 재고를 확인해보세요!
     </p>
     
@@ -199,14 +199,12 @@
     let userLat = 37.5547;
     let userLng = 126.9707;
 
-    const map = L.map('map').setView([userLat, userLng], 16);
+    const map = L.map('map').setView([userLat, userLng], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-
-    const vendingMarkersGroup = L.layerGroup().addTo(map);
 
     const vendingIcon = L.divIcon({
       className: 'vending-icon',
@@ -215,40 +213,44 @@
       iconAnchor: [15, 15]
     });
 
-    // 지도 중심 기준 근처 자판기 자동 생성
-    function updateVendingMachinesOnMap() {
-      vendingMarkersGroup.clearLayers();
+    // 📍 주요 지역별 실제 고정 위치 데이터를 등록하는 함수
+    function registerFixedVendingMachines(centerLat, centerLng) {
+      // 위치 좌표가 절대 고정된 자판기 데이터베이스 (예시 데이터)
+      const fixedVendingDatabase = [
+        // 서울역 주변 고정 자판기
+        { id: 101, name: "서울역 1번출구 자판기 (음료/스낵)", lat: 37.5555, lng: 126.9710 },
+        { id: 102, name: "서울역 버스환승센터 자판기", lat: 37.5538, lng: 126.9725 },
+        { id: 103, name: "남산백범광장 자판기 (멀티)", lat: 37.5542, lng: 126.9780 },
+        
+        // 강남역 주변 고정 자판기
+        { id: 201, name: "강남역 11번출구 자판기", lat: 37.4981, lng: 127.0276 },
+        { id: 202, name: "강남 CGV 앞 자판기", lat: 37.5015, lng: 127.0263 },
 
-      const center = map.getCenter();
-      const zoom = map.getZoom();
+        // 홍대입구 주변 고정 자판기
+        { id: 301, name: "홍대입구역 9번출구 자판기", lat: 37.5568, lng: 126.9238 },
+        { id: 302, name: "홍대 걷고싶은거리 자판기", lat: 37.5552, lng: 126.9220 },
 
-      if (zoom < 13) return;
-
-      const offset = 0.002 * (16 / Math.max(zoom, 10));
-
-      const vendingMachines = [
-        { id: 1, name: "자판기 A호점 (음료/스낵)", lat: center.lat + offset, lng: center.lng + offset },
-        { id: 2, name: "자판기 B호점 (스낵 전용)", lat: center.lat - offset * 0.8, lng: center.lng + offset * 1.2 },
-        { id: 3, name: "자판기 C호점 (멀티 자판기)", lat: center.lat + offset * 0.6, lng: center.lng - offset * 1.1 },
-        { id: 4, name: "자판기 D호점 (음료 전용)", lat: center.lat - offset * 1.1, lng: center.lng - offset * 0.7 }
+        // 사용자 현재 위치 기반 근처 고정 위치 2개 생성 (최초 1회만 고정 등록)
+        { id: 901, name: "내 근처 자판기 A호점", lat: centerLat + 0.002, lng: centerLng + 0.002 },
+        { id: 902, name: "내 근처 자판기 B호점", lat: centerLat - 0.0015, lng: centerLng + 0.003 }
       ];
 
-      vendingMachines.forEach(vm => {
-        const marker = L.marker([vm.lat, vm.lng], { icon: vendingIcon });
+      // 고정 마커 생성 (지도 축소/이동을 해도 이동하지 않고 절대 좌표에 고정됨)
+      fixedVendingDatabase.forEach(vm => {
+        const marker = L.marker([vm.lat, vm.lng], { icon: vendingIcon }).addTo(map);
         marker.bindPopup(`<b>${vm.name}</b><br/><small>클릭하여 재고 확인</small>`);
 
         marker.on('click', () => {
           currentSelectedVending = vm;
           checkStock(vm);
         });
-
-        vendingMarkersGroup.addLayer(marker);
       });
     }
 
     function initApp(lat, lng) {
-      map.setView([lat, lng], 16);
+      map.setView([lat, lng], 15);
 
+      // 내 위치 마커 (파란색)
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         iconSize: [18, 18],
@@ -259,14 +261,11 @@
         .bindPopup('<b>현재 내 위치</b>')
         .openPopup();
 
-      updateVendingMachinesOnMap();
+      // 고정 자판기 지도에 등록
+      registerFixedVendingMachines(lat, lng);
     }
 
-    // 지도 이동 및 줌 변경 이벤트
-    map.on('moveend', () => {
-      updateVendingMachinesOnMap();
-    });
-
+    // 위치 정보 수신
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {

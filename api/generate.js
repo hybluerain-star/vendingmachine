@@ -9,7 +9,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '자판기 정보가 필요합니다.' });
   }
 
-  // 🔑 Vercel 환경변수(GEMINI_API_KEY)를 우선 사용하고, 없으면 아래 따옴표 안의 하드코딩 키를 사용합니다.
   const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 
   if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
@@ -30,7 +29,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
