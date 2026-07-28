@@ -9,11 +9,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '자판기 정보가 필요합니다.' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
+  if (!apiKey) {
     return res.status(500).json({ 
-      error: 'GEMINI_API_KEY 환경변수가 설정되지 않았거나 올바른 API 키가 작성되지 않았습니다.' 
+      error: 'GEMINI_API_KEY 환경변수가 설정되지 않았습니다. Vercel 환경변수에서 설정해주세요.' 
     });
   }
 
@@ -28,8 +28,9 @@ export default async function handler(req, res) {
 - 마크다운 블록(\`\`\`html 등)은 출력하지 말고 순수 HTML 태그 내용만 반환해줘.`;
 
   try {
+    // gemini-3.1-lite 모델 지정
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -60,7 +61,6 @@ export default async function handler(req, res) {
     let resultText =
       data.candidates?.[0]?.content?.parts?.[0]?.text || '결과를 불러올 수 없습니다.';
 
-    // 백틱 코드블록 감싸진 부분 제거 처리
     resultText = resultText.replace(/```html/g, '').replace(/```/g, '').trim();
 
     return res.status(200).json({ result: resultText });

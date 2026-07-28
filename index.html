@@ -148,7 +148,7 @@
       box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
     }
 
-    /* 자판기 커스텀 마커 스타일 */
+    /* 자판기 커스텀 마커 */
     .vending-icon {
       background-color: #ffffff;
       border: 2px solid var(--primary-color);
@@ -168,7 +168,7 @@
     <h1>📍 지도 기반 자판기 재고 확인 앱</h1>
     <p class="info-text">
       지도를 이동하면 새로운 지역 근처 자판기가 자동으로 탐색됩니다.<br/>
-      자판기 마커(🥤)를 클릭하여 AI 실시간 예상 재고를 확인해보세요!
+      자판기 마커(🥤)를 클릭하여 Gemini 3.1 Lite 모델의 실시간 예상 재고를 확인해보세요!
     </p>
     
     <!-- 지도 영역 -->
@@ -199,19 +199,15 @@
     let userLat = 37.5547;
     let userLng = 126.9707;
 
-    // 지도 초기화
     const map = L.map('map').setView([userLat, userLng], 16);
 
-    // OpenStreetMap 타일 레이어
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // 자판기 마커들을 저장할 그룹
     const vendingMarkersGroup = L.layerGroup().addTo(map);
 
-    // 자판기 커스텀 아이콘
     const vendingIcon = L.divIcon({
       className: 'vending-icon',
       html: '🥤',
@@ -219,14 +215,13 @@
       iconAnchor: [15, 15]
     });
 
-    // 지도 중심 기준으로 근처 가상 자판기 마커 생성 함수
+    // 지도 중심 기준 근처 자판기 자동 생성
     function updateVendingMachinesOnMap() {
       vendingMarkersGroup.clearLayers();
 
       const center = map.getCenter();
       const zoom = map.getZoom();
 
-      // 너무 멀리 줌아웃된 경우에는 자판기를 표시하지 않음 (줌 레벨 13 이상일 때만)
       if (zoom < 13) return;
 
       const offset = 0.002 * (16 / Math.max(zoom, 10));
@@ -251,11 +246,9 @@
       });
     }
 
-    // 초기 앱 설정
     function initApp(lat, lng) {
       map.setView([lat, lng], 16);
 
-      // 내 위치 마커
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         iconSize: [18, 18],
@@ -266,16 +259,14 @@
         .bindPopup('<b>현재 내 위치</b>')
         .openPopup();
 
-      // 초기 자판기 탐색
       updateVendingMachinesOnMap();
     }
 
-    // 지도 이동/줌 종료 시 그 지역 근처 자판기 자동 생성
+    // 지도 이동 및 줌 변경 이벤트
     map.on('moveend', () => {
       updateVendingMachinesOnMap();
     });
 
-    // GPS 위치 요청
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -291,12 +282,11 @@
       initApp(userLat, userLng);
     }
 
-    // AI 재고 확인 요청 함수
     async function checkStock(vending) {
       resultDiv.classList.add('active');
       vendingTitle.textContent = `🥤 ${vending.name}`;
       stockContent.className = 'stock-content loading-text';
-      stockContent.textContent = 'Gemini AI가 실시간 예상 재고를 확인 중입니다...';
+      stockContent.textContent = 'Gemini 3.1 Lite AI가 실시간 예상 재고를 확인 중입니다...';
       refreshBtn.disabled = true;
 
       try {
@@ -328,7 +318,6 @@
       }
     }
 
-    // 새로고침 버튼 이벤트
     refreshBtn.addEventListener('click', () => {
       if (currentSelectedVending) {
         checkStock(currentSelectedVending);
