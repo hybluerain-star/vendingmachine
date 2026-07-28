@@ -12,11 +12,10 @@ export default async function handler(req, res) {
 
   if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
     return res.status(500).json({ 
-      error: 'API 키가 설정되지 않았습니다. api/generate.js 파일 내부의 apiKey 변수에 실제 키를 넣어주세요.' 
+      error: 'API 키가 설정되지 않았습니다. Vercel 환경 변수 GEMINI_API_KEY를 설정해 주세요.' 
     });
   }
 
-  // 💡 픽앤뽑 전용 브랜드 톤앤매너 및 일관성 있는 재고 출력 가이드
   const prompt = `사용자가 선택한 자판기: "${vendingName}" (위도: ${lat}, 경도: ${lng})
 너는 스마트 자판기 브랜드 '픽앤뽑(Pick & Pop)'의 실시간 재고 안내 AI야.
 
@@ -31,7 +30,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

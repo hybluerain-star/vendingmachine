@@ -10,17 +10,17 @@
 
   <style>
     :root {
-      /* 심플 & 깔끔한 하늘색 중심 테마 */
-      --bg-color: #f0f9ff;            /* 맑은 하늘빛 배경 (Sky-50) */
-      --card-bg: #ffffff;            /* 깔끔한 흰색 카드 */
-      --primary-color: #0284c7;       /* 메인 포카리/스카이 블루 (Sky-600) */
-      --primary-hover: #0369a1;       /* 호버 시 짙은 블루 (Sky-700) */
-      --accent-cyan: #06b6d4;         /* 밝은 시안 포인트 (Cyan-500) */
-      --accent-cyan-bg: #e0f2fe;      /* 소프트 하늘색 배경 */
-      --text-main: #0f172a;           /* 모던 딥 블루/슬레이트 텍스트 */
-      --text-sub: #64748b;            /* 부드러운 설명 텍스트 */
-      --border-color: #e2e8f0;        /* 은은한 회색 테두리 */
-      --card-border: #bae6fd;          /* 은은한 하늘색 카드 테두리 */
+      /* 하늘색 시원한 스카이 테마 */
+      --bg-color: #f0f9ff;
+      --card-bg: #ffffff;
+      --primary-color: #0284c7;
+      --primary-hover: #0369a1;
+      --accent-cyan: #06b6d4;
+      --accent-cyan-bg: #e0f2fe;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --card-border: #bae6fd;
       --shadow-sm: 0 4px 12px rgba(2, 132, 199, 0.08);
       --shadow-md: 0 10px 25px -5px rgba(2, 132, 199, 0.12);
     }
@@ -79,7 +79,17 @@
       line-height: 1.5;
     }
 
-    /* 도시 추천 버튼 라인 */
+    .data-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      background-color: #e0f2fe;
+      color: #0369a1;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
     .city-nav {
       display: flex;
       gap: 8px;
@@ -107,7 +117,6 @@
       transform: translateY(-1px);
     }
 
-    /* 지도 창 */
     #map {
       width: 100%;
       height: 440px;
@@ -117,7 +126,6 @@
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    /* 결과 서랍 창 */
     .result-container {
       padding: 22px;
       border-radius: 14px;
@@ -184,7 +192,6 @@
       color: var(--text-main);
     }
 
-    /* 내 위치 마커 */
     .user-location-marker {
       background-color: var(--accent-cyan);
       border: 3px solid white;
@@ -192,7 +199,6 @@
       box-shadow: 0 0 12px rgba(6, 182, 212, 0.6);
     }
 
-    /* 자판기 커스텀 마커 */
     .vending-icon {
       background-color: #ffffff;
       border: 2.5px solid var(--primary-color);
@@ -217,12 +223,12 @@
     <div class="header-group">
       <h1>🧃 픽앤뽑 (Pick & Pop) 자판기 지도</h1>
       <p class="info-text">
-        전국에 위치한 <b>픽앤뽑 자판기</b> 위치입니다.<br/>
-        도시를 선택하거나 지도 아이콘(🥤)을 클릭하여 AI 실시간 재고 상태를 확인해보세요!
+        행정안전부 공공데이터 연동 <b>전국 픽앤뽑 자판기</b> 위치입니다.<br/>
+        마커(🥤)를 클릭하면 Gemini AI가 예상 실시간 재고를 안내해 드립니다.
       </p>
+      <div><span id="dataStatusBadge" class="data-badge">🌐 데이터를 불러오는 중...</span></div>
     </div>
 
-    <!-- 빠른 도시 이동 버튼 -->
     <div class="city-nav">
       <button class="city-btn" onclick="moveToCity(37.4449, 127.1388)">📍 성남</button>
       <button class="city-btn" onclick="moveToCity(37.5547, 126.9707)">📍 서울</button>
@@ -235,10 +241,8 @@
       <button class="city-btn" onclick="moveToCity(33.4996, 126.5312)">📍 제주</button>
     </div>
     
-    <!-- 지도 영역 -->
     <div id="map"></div>
 
-    <!-- 결과 영역 -->
     <div id="result" class="result-container">
       <div class="result-header">
         <span id="vendingTitle" class="vending-title">자판기 재고 정보</span>
@@ -248,7 +252,6 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
   <script>
@@ -256,9 +259,10 @@
     const vendingTitle = document.getElementById('vendingTitle');
     const stockContent = document.getElementById('stockContent');
     const refreshBtn = document.getElementById('refreshBtn');
+    const dataStatusBadge = document.getElementById('dataStatusBadge');
 
     let currentSelectedVending = null;
-    let map = L.map('map').setView([37.4449, 127.1388], 14); // 기본 성남시 모란역 근처
+    let map = L.map('map').setView([37.4449, 127.1388], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -272,45 +276,32 @@
       iconAnchor: [16, 16]
     });
 
-    // 📍 전국 픽앤뽑 자판기 좌표 데이터베이스
-    const nationalVendingDatabase = [
-      // 성남 / 경기
-      { id: 1, name: "픽앤뽑 성남 모란역점", lat: 37.4323, lng: 127.1292 },
-      { id: 2, name: "픽앤뽑 성남 야탑광장점", lat: 37.4114, lng: 127.1287 },
-      { id: 3, name: "픽앤뽑 판교 테크노밸리점", lat: 37.4021, lng: 127.1086 },
-      { id: 4, name: "픽앤뽑 성남시청점", lat: 37.4200, lng: 127.1266 },
-      { id: 5, name: "픽앤뽑 수원역 환승센터점", lat: 37.2660, lng: 127.0007 },
+    // 공공데이터 API로부터 자판기 목록 불러오기
+    async function loadVendingMachines() {
+      try {
+        const response = await fetch('/api/vending-list');
+        const result = await response.json();
 
-      // 서울
-      { id: 101, name: "픽앤뽑 서울역점", lat: 37.5555, lng: 126.9710 },
-      { id: 102, name: "픽앤뽑 강남역점", lat: 37.4981, lng: 127.0276 },
-      { id: 103, name: "픽앤뽑 홍대입구점", lat: 37.5568, lng: 126.9238 },
-      { id: 104, name: "픽앤뽑 여의도 한강공원점", lat: 37.5284, lng: 126.9331 },
+        if (result.source === 'api') {
+          dataStatusBadge.textContent = '🏛️ 행정안전부 공공데이터 실시간 연동됨';
+          dataStatusBadge.style.backgroundColor = '#dcfce7';
+          dataStatusBadge.style.color = '#15803d';
+        } else {
+          dataStatusBadge.textContent = '💡 공공데이터 API 키 대기 중 (기본 샘플 모드)';
+        }
 
-      // 부산
-      { id: 201, name: "픽앤뽑 부산 서면점", lat: 35.1578, lng: 129.0592 },
-      { id: 202, name: "픽앤뽑 해운대점", lat: 35.1587, lng: 129.1604 },
+        const vendingList = result.data || [];
+        renderMarkers(vendingList);
+      } catch (error) {
+        console.error("데이터 로딩 실패:", error);
+        dataStatusBadge.textContent = '⚠️ 데이터 로딩 실패 (기본 모드 전환)';
+      }
+    }
 
-      // 대구
-      { id: 301, name: "픽앤뽑 대구 동성로점", lat: 35.8694, lng: 128.5942 },
-
-      // 인천
-      { id: 401, name: "픽앤뽑 인천 부평역점", lat: 37.4895, lng: 126.7233 },
-
-      // 광주
-      { id: 501, name: "픽앤뽑 광주 유스퀘어점", lat: 35.1602, lng: 126.8794 },
-
-      // 대전
-      { id: 601, name: "픽앤뽑 대전역점", lat: 36.3315, lng: 127.4332 },
-
-      // 제주
-      { id: 701, name: "픽앤뽑 제주공항점", lat: 33.5066, lng: 126.4929 }
-    ];
-
-    function initNationalMarkers() {
-      nationalVendingDatabase.forEach(vm => {
+    function renderMarkers(list) {
+      list.forEach(vm => {
         const marker = L.marker([vm.lat, vm.lng], { icon: vendingIcon }).addTo(map);
-        marker.bindPopup(`<b>${vm.name}</b><br/><small style="color:#0284c7;">클릭하여 재고 확인</small>`);
+        marker.bindPopup(`<b>${vm.name}</b><br/><small style="color:#64748b;">${vm.address || '주소 정보 없음'}</small><br/><small style="color:#0284c7;">클릭하여 AI 재고 확인</small>`);
 
         marker.on('click', () => {
           currentSelectedVending = vm;
@@ -323,7 +314,6 @@
       map.setView([lat, lng], 14);
     }
 
-    // 사용자 현재 위치 확인
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
         const userLat = pos.coords.latitude;
@@ -339,13 +329,13 @@
       });
     }
 
-    initNationalMarkers();
+    loadVendingMachines();
 
     async function checkStock(vending) {
       resultDiv.classList.add('active');
       vendingTitle.textContent = `🧃 ${vending.name}`;
       stockContent.className = 'stock-content loading-text';
-      stockContent.textContent = 'Gemini 3.1 Lite AI가 실시간 가상 재고를 확인 중입니다...';
+      stockContent.textContent = 'Gemini 3.1 Lite AI가 실시간 예상 재고를 확인 중입니다...';
       refreshBtn.disabled = true;
 
       try {
