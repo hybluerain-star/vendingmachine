@@ -81,7 +81,7 @@
 
     .data-badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 4px 12px;
       background-color: #e0f2fe;
       color: #0369a1;
       border-radius: 12px;
@@ -276,7 +276,6 @@
       iconAnchor: [16, 16]
     });
 
-    // 공공데이터 API로부터 자판기 목록 불러오기
     async function loadVendingMachines() {
       try {
         const response = await fetch('/api/vending-list');
@@ -288,6 +287,8 @@
           dataStatusBadge.style.color = '#15803d';
         } else {
           dataStatusBadge.textContent = '💡 공공데이터 API 키 대기 중 (기본 샘플 모드)';
+          dataStatusBadge.style.backgroundColor = '#e0f2fe';
+          dataStatusBadge.style.color = '#0369a1';
         }
 
         const vendingList = result.data || [];
@@ -335,7 +336,7 @@
       resultDiv.classList.add('active');
       vendingTitle.textContent = `🧃 ${vending.name}`;
       stockContent.className = 'stock-content loading-text';
-      stockContent.textContent = 'Gemini 3.1 Lite AI가 실시간 예상 재고를 확인 중입니다...';
+      stockContent.textContent = 'Gemini 3.1 Flash-Lite AI가 실시간 예상 재고를 확인 중입니다...';
       refreshBtn.disabled = true;
 
       try {

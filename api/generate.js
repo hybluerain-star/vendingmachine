@@ -29,6 +29,7 @@ export default async function handler(req, res) {
 - 마크다운 블록(\`\`\`html 등)은 절대 사용하지 말고 순수 HTML 코드만 반환해줘.`;
 
   try {
+    // 💡 gemini-3.1-flash-lite 모델 적용
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
       {
