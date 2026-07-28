@@ -3,25 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>전국 자판기 지도 & AI 재고 확인</title>
+  <title>픽앤뽑 (Pick & Pop) 전국 자판기 지도 & AI 재고 안내</title>
   
   <!-- Leaflet OpenStreetMap CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     :root {
-      /* 심플 & 깔끔한 하늘색 + 초록색 테마 */
-      --bg-color: #f0fdf4;            /* 아주 옅은 민트/초록 배경 */
+      /* 심플 & 깔끔한 하늘색 중심 테마 */
+      --bg-color: #f0f9ff;            /* 맑은 하늘빛 배경 (Sky-50) */
       --card-bg: #ffffff;            /* 깔끔한 흰색 카드 */
-      --primary-color: #0d9488;       /* 메인 티어/민트 그린 (Teal-600) */
-      --primary-hover: #0f766e;       /* 호버 시 짙은 티어 (Teal-700) */
-      --accent-sky: #0284c7;          /* 활성 포인트 하늘색 (Sky-600) */
-      --accent-sky-bg: #e0f2fe;       /* 소프트 하늘색 배경 */
-      --text-main: #1e293b;           /* 진한 슬레이트 모던 텍스트 */
+      --primary-color: #0284c7;       /* 메인 포카리/스카이 블루 (Sky-600) */
+      --primary-hover: #0369a1;       /* 호버 시 짙은 블루 (Sky-700) */
+      --accent-cyan: #06b6d4;         /* 밝은 시안 포인트 (Cyan-500) */
+      --accent-cyan-bg: #e0f2fe;      /* 소프트 하늘색 배경 */
+      --text-main: #0f172a;           /* 모던 딥 블루/슬레이트 텍스트 */
       --text-sub: #64748b;            /* 부드러운 설명 텍스트 */
       --border-color: #e2e8f0;        /* 은은한 회색 테두리 */
-      --shadow-sm: 0 4px 12px rgba(13, 148, 136, 0.06);
-      --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+      --card-border: #bae6fd;          /* 은은한 하늘색 카드 테두리 */
+      --shadow-sm: 0 4px 12px rgba(2, 132, 199, 0.08);
+      --shadow-md: 0 10px 25px -5px rgba(2, 132, 199, 0.12);
     }
 
     * {
@@ -48,7 +49,7 @@
       padding: 28px;
       border-radius: 20px;
       box-shadow: var(--shadow-md);
-      border: 1px solid #d1fae5;
+      border: 1px solid var(--card-border);
       display: flex;
       flex-direction: column;
       gap: 18px;
@@ -62,8 +63,8 @@
     }
 
     h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
+      font-size: 1.7rem;
+      font-weight: 800;
       color: var(--primary-color);
       letter-spacing: -0.5px;
       display: flex;
@@ -100,9 +101,9 @@
     }
 
     .city-btn:hover {
-      background-color: var(--accent-sky-bg);
-      color: var(--accent-sky);
-      border-color: #bae6fd;
+      background-color: var(--accent-cyan-bg);
+      color: var(--primary-color);
+      border-color: #7dd3fc;
       transform: translateY(-1px);
     }
 
@@ -120,8 +121,8 @@
     .result-container {
       padding: 22px;
       border-radius: 14px;
-      background-color: #f0fdf4;
-      border: 1px solid #bbf7d0;
+      background-color: #f0f9ff;
+      border: 1px solid #bae6fd;
       display: none;
       flex-direction: column;
       gap: 14px;
@@ -136,7 +137,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #dcfce7;
+      border-bottom: 2px solid #e0f2fe;
       padding-bottom: 12px;
     }
 
@@ -151,7 +152,7 @@
       font-size: 0.88rem;
       font-weight: 600;
       color: #ffffff;
-      background-color: var(--accent-sky);
+      background-color: var(--primary-color);
       border: none;
       border-radius: 8px;
       cursor: pointer;
@@ -162,7 +163,7 @@
     }
 
     .refresh-btn:hover {
-      background-color: #0369a1;
+      background-color: var(--primary-hover);
     }
 
     .refresh-btn:disabled {
@@ -185,10 +186,10 @@
 
     /* 내 위치 마커 */
     .user-location-marker {
-      background-color: var(--accent-sky);
+      background-color: var(--accent-cyan);
       border: 3px solid white;
       border-radius: 50%;
-      box-shadow: 0 0 12px rgba(2, 132, 199, 0.5);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.6);
     }
 
     /* 자판기 커스텀 마커 */
@@ -200,7 +201,7 @@
       justify-content: center;
       align-items: center;
       font-size: 16px;
-      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+      box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
       cursor: pointer;
       transition: transform 0.2s ease;
     }
@@ -214,10 +215,10 @@
 
   <div class="container">
     <div class="header-group">
-      <h1>🌿 스마트 자판기 지도 & AI 재고 안내</h1>
+      <h1>🧃 픽앤뽑 (Pick & Pop) 자판기 지도</h1>
       <p class="info-text">
-        지방부터 서울·성남까지 전국 자판기(🥤) 위치입니다.<br/>
-        원하는 도시를 선택하거나 지도 마커를 눌러 실시간 가상 재고를 확인해보세요!
+        전국에 위치한 <b>픽앤뽑 자판기</b> 위치입니다.<br/>
+        도시를 선택하거나 지도 아이콘(🥤)을 클릭하여 AI 실시간 재고 상태를 확인해보세요!
       </p>
     </div>
 
@@ -271,39 +272,39 @@
       iconAnchor: [16, 16]
     });
 
-    // 📍 전국 고정 자판기 좌표 데이터베이스
+    // 📍 전국 픽앤뽑 자판기 좌표 데이터베이스
     const nationalVendingDatabase = [
       // 성남 / 경기
-      { id: 1, name: "성남 모란역 8번출구 자판기", lat: 37.4323, lng: 127.1292 },
-      { id: 2, name: "성남 야탑역 광장 자판기", lat: 37.4114, lng: 127.1287 },
-      { id: 3, name: "판교테크노밸리 멀티 자판기", lat: 37.4021, lng: 127.1086 },
-      { id: 4, name: "성남시청 민원실 앞 자판기", lat: 37.4200, lng: 127.1266 },
-      { id: 5, name: "수원역 환승센터 자판기", lat: 37.2660, lng: 127.0007 },
+      { id: 1, name: "픽앤뽑 성남 모란역점", lat: 37.4323, lng: 127.1292 },
+      { id: 2, name: "픽앤뽑 성남 야탑광장점", lat: 37.4114, lng: 127.1287 },
+      { id: 3, name: "픽앤뽑 판교 테크노밸리점", lat: 37.4021, lng: 127.1086 },
+      { id: 4, name: "픽앤뽑 성남시청점", lat: 37.4200, lng: 127.1266 },
+      { id: 5, name: "픽앤뽑 수원역 환승센터점", lat: 37.2660, lng: 127.0007 },
 
       // 서울
-      { id: 101, name: "서울역 1번출구 자판기", lat: 37.5555, lng: 126.9710 },
-      { id: 102, name: "강남역 11번출구 자판기", lat: 37.4981, lng: 127.0276 },
-      { id: 103, name: "홍대입구역 9번출구 자판기", lat: 37.5568, lng: 126.9238 },
-      { id: 104, name: "여의도 한강공원 음료자판기", lat: 37.5284, lng: 126.9331 },
+      { id: 101, name: "픽앤뽑 서울역점", lat: 37.5555, lng: 126.9710 },
+      { id: 102, name: "픽앤뽑 강남역점", lat: 37.4981, lng: 127.0276 },
+      { id: 103, name: "픽앤뽑 홍대입구점", lat: 37.5568, lng: 126.9238 },
+      { id: 104, name: "픽앤뽑 여의도 한강공원점", lat: 37.5284, lng: 126.9331 },
 
       // 부산
-      { id: 201, name: "부산 서면역 지하상가 자판기", lat: 35.1578, lng: 129.0592 },
-      { id: 202, name: "해운대 만남의광장 자판기", lat: 35.1587, lng: 129.1604 },
+      { id: 201, name: "픽앤뽑 부산 서면점", lat: 35.1578, lng: 129.0592 },
+      { id: 202, name: "픽앤뽑 해운대점", lat: 35.1587, lng: 129.1604 },
 
       // 대구
-      { id: 301, name: "대구 동성로 야외 자판기", lat: 35.8694, lng: 128.5942 },
+      { id: 301, name: "픽앤뽑 대구 동성로점", lat: 35.8694, lng: 128.5942 },
 
       // 인천
-      { id: 401, name: "인천 부평역 광장 자판기", lat: 37.4895, lng: 126.7233 },
+      { id: 401, name: "픽앤뽑 인천 부평역점", lat: 37.4895, lng: 126.7233 },
 
       // 광주
-      { id: 501, name: "광주 유스퀘어 터미널 자판기", lat: 35.1602, lng: 126.8794 },
+      { id: 501, name: "픽앤뽑 광주 유스퀘어점", lat: 35.1602, lng: 126.8794 },
 
       // 대전
-      { id: 601, name: "대전역 동광장 자판기", lat: 36.3315, lng: 127.4332 },
+      { id: 601, name: "픽앤뽑 대전역점", lat: 36.3315, lng: 127.4332 },
 
       // 제주
-      { id: 701, name: "제주공항 게이트 앞 자판기", lat: 33.5066, lng: 126.4929 }
+      { id: 701, name: "픽앤뽑 제주공항점", lat: 33.5066, lng: 126.4929 }
     ];
 
     function initNationalMarkers() {
@@ -342,7 +343,7 @@
 
     async function checkStock(vending) {
       resultDiv.classList.add('active');
-      vendingTitle.textContent = `🥤 ${vending.name}`;
+      vendingTitle.textContent = `🧃 ${vending.name}`;
       stockContent.className = 'stock-content loading-text';
       stockContent.textContent = 'Gemini 3.1 Lite AI가 실시간 가상 재고를 확인 중입니다...';
       refreshBtn.disabled = true;

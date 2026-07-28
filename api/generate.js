@@ -16,21 +16,22 @@ export default async function handler(req, res) {
     });
   }
 
-  // 💡 풍부하고 현실적인 음료/스낵 목록과 일관성을 갖춘 재고 지침 부여
+  // 💡 픽앤뽑 전용 브랜드 톤앤매너 및 일관성 있는 재고 출력 가이드
   const prompt = `사용자가 선택한 자판기: "${vendingName}" (위도: ${lat}, 경도: ${lng})
-너는 이 자판기의 실시간 가상 재고 관리 AI 시스템이야.
+너는 스마트 자판기 브랜드 '픽앤뽑(Pick & Pop)'의 실시간 재고 안내 AI야.
 
 [응답 작성 지침]
 - 위도(${lat})와 경도(${lng}) 좌표값을 바탕으로 항상 일관되고 자연스러운 재고 상태를 만들어줘.
-- 품절(0개)인 항목은 1개 이하로 최소화하고, 실제 자판기처럼 다양한 인기 음료(콜라, 사이다, 이온음료, 캔커피, 옥수수수염차 등 6~8종)와 간식(초코바, 과자 등 2~3종)을 균형 있게 구성해줘.
-- 깔끔한 HTML 태그를 사용해 작성해줘 (스타일이 어울리도록 맑은 민트/초록 테마 분위기에 맞게 정돈).
+- 실제 자판기처럼 다양한 인기 음료(콜라, 사이다, 이온음료, 캔커피, 차 종류 등 6~8종)와 간식(초코바, 과자, 젤리 등 2~3종)으로 풍부하게 구성해줘.
+- 품절(0개) 항목은 가급적 최소화(0~1개 수준)하여 실제 작동 중인 자판기 느낌을 줘.
+- 시원한 하늘색 디자인 테마와 잘 어울리는 깔끔한 HTML 스타일로 구성해줘.
 - 상태 표시: 🟢 여유 (5개 이상), 🟡 부족 (1~2개), 🔴 품절 (0개)
-- 마지막 줄에 관리 상태 인삿말 1줄 추가.
-- 마크다운 블록(\`\`\`html 등)은 절대 사용하지 말고 pure HTML 태그 내용만 반환해줘.`;
+- 마지막 줄에는 "픽앤뽑을 이용해 주셔서 감사합니다!" 형태의 친절한 인삿말 1줄을 추가해줘.
+- 마크다운 블록(\`\`\`html 등)은 절대 사용하지 말고 순수 HTML 코드만 반환해줘.`;
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
