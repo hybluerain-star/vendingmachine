@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>자판기 재고 수량 확인 앱</title>
+  <style>
+    :root {
+      --bg-color: #f7f4ee;
+      --card-bg: #ffffff;
+      --primary-color: #d97706;
+      --primary-hover: #b45309;
+      --text-color: #44403c;
+      --border-color: #e7e5e4;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 500px;
+      padding: 32px 24px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--primary-color);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      outline: none;
+      background-color: #fafaf9;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+      background-color: #ffffff;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: var(--primary-color);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button:disabled {
+      background-color: #a8a29e;
+      cursor: not-allowed;
+    }
+
+    .result-container {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      background-color: #fafaf9;
+      border: 1px solid var(--border-color);
+      min-height: 100px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      display: none;
+    }
+
+    .result-container.active {
+      display: block;
+    }
+
+    .loading {
+      text-align: center;
+      color: #78716c;
+      font-style: italic;
+    }
+
+    .error {
+      color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>자판기 재고 수량 확인 앱</h1>
+    
+    <div class="form-group">
+      <input 
+        type="text" 
+        id="locationInput" 
+        placeholder="근처 자판기 위치를 입력하세요 (예: 강남역 2번 출구)" 
+      />
+      <button id="searchBtn">재고 확인하기</button>
+    </div>
+
+    <div id="result" class="result-container"></div>
+  </div>
+
+  <script>
+    const locationInput = document.getElementById('locationInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultDiv = document.getElementById('result');
+
+    async function checkStock() {
+      const location = locationInput.value.trim();
+      
+      if (!location) {
+        alert('근처 자판기 위치를 입력해주세요.');
+        return;
+      }
+
+      searchBtn.disabled = true;
+      resultDiv.classList.add('active');
+      resultDiv.classList.remove('error');
+      resultDiv.textContent = '재고 정보를 확인하는 중입니다...';
+
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ location }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || '오류가 발생했습니다.');
+        }
+
+        resultDiv.textContent = data.result;
+      } catch (error) {
+        resultDiv.classList.add('error');
+        resultDiv.textContent = `오류 발생: ${error.message}`;
+      } finally {
+        searchBtn.disabled = false;
+      }
+    }
+
+    searchBtn.addEventListener('click', checkStock);
+    locationInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        checkStock();
+      }
+    });
+  </script>
+</body>
+</html>
