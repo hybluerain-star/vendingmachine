@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>지도 기반 자판기 재고 확인 앱</title>
+  <title>전국 지도 기반 자판기 재고 확인 앱</title>
   
   <!-- Leaflet OpenStreetMap CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -39,10 +39,10 @@
     .container {
       background-color: var(--card-bg);
       width: 100%;
-      max-width: 800px;
+      max-width: 850px;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
       border: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
@@ -63,9 +63,33 @@
       line-height: 1.4;
     }
 
+    .city-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .city-btn {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border-color);
+      background: #f5f5f4;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .city-btn:hover {
+      background-color: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
     #map {
       width: 100%;
-      height: 400px;
+      height: 450px;
       border-radius: 12px;
       border: 1px solid var(--border-color);
       z-index: 1;
@@ -111,11 +135,6 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: background-color 0.2s;
-    }
-
-    .refresh-btn:hover {
-      background-color: var(--primary-hover);
     }
 
     .refresh-btn:disabled {
@@ -135,12 +154,6 @@
       font-size: 0.95rem;
     }
 
-    .error {
-      color: #dc2626;
-      font-weight: 500;
-    }
-
-    /* 내 위치 마커 */
     .user-location-marker {
       background-color: var(--accent-blue);
       border: 2px solid white;
@@ -148,7 +161,6 @@
       box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
     }
 
-    /* 자판기 커스텀 마커 */
     .vending-icon {
       background-color: #ffffff;
       border: 2px solid var(--primary-color);
@@ -165,11 +177,24 @@
 <body>
 
   <div class="container">
-    <h1>📍 지도 기반 자판기 재고 확인 앱</h1>
+    <h1>📍 전국 자판기 지도 & 실시간 AI 재고 확인</h1>
     <p class="info-text">
-      지도를 축소(줌아웃)하거나 이동해도 자판기 위치는 실제 장소에 고정됩니다.<br/>
-      자판기 마커(🥤)를 클릭하여 실시간 예상 재고를 확인해보세요!
+      성남, 서울, 부산 등 전국 각지의 실제 고정 위치 자판기 마커(🥤)입니다.<br/>
+      원하는 도시를 클릭하여 이동해보세요!
     </p>
+
+    <!-- 빠른 도시 이동 버튼 -->
+    <div class="city-nav">
+      <button class="city-btn" onclick="moveToCity(37.4449, 127.1388, '성남(모란/야탑)')">📍 성남</button>
+      <button class="city-btn" onclick="moveToCity(37.5547, 126.9707, '서울역')">📍 서울</button>
+      <button class="city-btn" onclick="moveToCity(35.1796, 129.0756, '부산')">📍 부산</button>
+      <button class="city-btn" onclick="moveToCity(35.8714, 128.6014, '대구')">📍 대구</button>
+      <button class="city-btn" onclick="moveToCity(37.4563, 126.7052, '인천')">📍 인천</button>
+      <button class="city-btn" onclick="moveToCity(35.1595, 126.8526, '광주')">📍 광주</button>
+      <button class="city-btn" onclick="moveToCity(36.3504, 127.3845, '대전')">📍 대전</button>
+      <button class="city-btn" onclick="moveToCity(35.5384, 129.3114, '울산')">📍 울산</button>
+      <button class="city-btn" onclick="moveToCity(33.4996, 126.5312, '제주')">📍 제주</button>
+    </div>
     
     <!-- 지도 영역 -->
     <div id="map"></div>
@@ -184,7 +209,6 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
   <script>
@@ -194,12 +218,7 @@
     const refreshBtn = document.getElementById('refreshBtn');
 
     let currentSelectedVending = null;
-
-    // 기본 위치 (서울역)
-    let userLat = 37.5547;
-    let userLng = 126.9707;
-
-    const map = L.map('map').setView([userLat, userLng], 15);
+    let map = L.map('map').setView([37.4449, 127.1388], 14); // 기본 성남시 모란역 근처
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -213,30 +232,44 @@
       iconAnchor: [15, 15]
     });
 
-    // 📍 주요 지역별 실제 고정 위치 데이터를 등록하는 함수
-    function registerFixedVendingMachines(centerLat, centerLng) {
-      // 위치 좌표가 절대 고정된 자판기 데이터베이스 (예시 데이터)
-      const fixedVendingDatabase = [
-        // 서울역 주변 고정 자판기
-        { id: 101, name: "서울역 1번출구 자판기 (음료/스낵)", lat: 37.5555, lng: 126.9710 },
-        { id: 102, name: "서울역 버스환승센터 자판기", lat: 37.5538, lng: 126.9725 },
-        { id: 103, name: "남산백범광장 자판기 (멀티)", lat: 37.5542, lng: 126.9780 },
-        
-        // 강남역 주변 고정 자판기
-        { id: 201, name: "강남역 11번출구 자판기", lat: 37.4981, lng: 127.0276 },
-        { id: 202, name: "강남 CGV 앞 자판기", lat: 37.5015, lng: 127.0263 },
+    // 📍 전국 주요 도시별 고정 자판기 좌표 데이터베이스
+    const nationalVendingDatabase = [
+      // 성남 / 경기
+      { id: 1, name: "성남 모란역 8번출구 자판기", lat: 37.4323, lng: 127.1292 },
+      { id: 2, name: "성남 야탑역 광장 자판기", lat: 37.4114, lng: 127.1287 },
+      { id: 3, name: "판교테크노밸리 멀티 자판기", lat: 37.4021, lng: 127.1086 },
+      { id: 4, name: "성남시청 민원실 앞 자판기", lat: 37.4200, lng: 127.1266 },
+      { id: 5, name: "수원역 환승센터 자판기", lat: 37.2660, lng: 127.0007 },
 
-        // 홍대입구 주변 고정 자판기
-        { id: 301, name: "홍대입구역 9번출구 자판기", lat: 37.5568, lng: 126.9238 },
-        { id: 302, name: "홍대 걷고싶은거리 자판기", lat: 37.5552, lng: 126.9220 },
+      // 서울
+      { id: 101, name: "서울역 1번출구 자판기", lat: 37.5555, lng: 126.9710 },
+      { id: 102, name: "강남역 11번출구 자판기", lat: 37.4981, lng: 127.0276 },
+      { id: 103, name: "홍대입구역 9번출구 자판기", lat: 37.5568, lng: 126.9238 },
+      { id: 104, name: "여의도 한강공원 음료자판기", lat: 37.5284, lng: 126.9331 },
 
-        // 사용자 현재 위치 기반 근처 고정 위치 2개 생성 (최초 1회만 고정 등록)
-        { id: 901, name: "내 근처 자판기 A호점", lat: centerLat + 0.002, lng: centerLng + 0.002 },
-        { id: 902, name: "내 근처 자판기 B호점", lat: centerLat - 0.0015, lng: centerLng + 0.003 }
-      ];
+      // 부산
+      { id: 201, name: "부산 서면역 지하상가 자판기", lat: 35.1578, lng: 129.0592 },
+      { id: 202, name: "해운대 만남의광장 자판기", lat: 35.1587, lng: 129.1604 },
 
-      // 고정 마커 생성 (지도 축소/이동을 해도 이동하지 않고 절대 좌표에 고정됨)
-      fixedVendingDatabase.forEach(vm => {
+      // 대구
+      { id: 301, name: "대구 동성로 야외 자판기", lat: 35.8694, lng: 128.5942 },
+
+      // 인천
+      { id: 401, name: "인천 부평역 광장 자판기", lat: 37.4895, lng: 126.7233 },
+
+      // 광주
+      { id: 501, name: "광주 유스퀘어 터미널 자판기", lat: 35.1602, lng: 126.8794 },
+
+      // 대전
+      { id: 601, name: "대전역 동광장 자판기", lat: 36.3315, lng: 127.4332 },
+
+      // 제주
+      { id: 701, name: "제주공항 게이트 앞 자판기", lat: 33.5066, lng: 126.4929 }
+    ];
+
+    // 전국 자판기 마커 일괄 배치
+    function initNationalMarkers() {
+      nationalVendingDatabase.forEach(vm => {
         const marker = L.marker([vm.lat, vm.lng], { icon: vendingIcon }).addTo(map);
         marker.bindPopup(`<b>${vm.name}</b><br/><small>클릭하여 재고 확인</small>`);
 
@@ -247,39 +280,28 @@
       });
     }
 
-    function initApp(lat, lng) {
-      map.setView([lat, lng], 15);
-
-      // 내 위치 마커 (파란색)
-      const userIcon = L.divIcon({
-        className: 'user-location-marker',
-        iconSize: [18, 18],
-        iconAnchor: [9, 9]
-      });
-      L.marker([lat, lng], { icon: userIcon })
-        .addTo(map)
-        .bindPopup('<b>현재 내 위치</b>')
-        .openPopup();
-
-      // 고정 자판기 지도에 등록
-      registerFixedVendingMachines(lat, lng);
+    // 도시 이동 버튼 클릭 함수
+    function moveToCity(lat, lng, cityName) {
+      map.setView([lat, lng], 14);
     }
 
-    // 위치 정보 수신
+    // 내 위치 탐색
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          userLat = position.coords.latitude;
-          userLng = position.coords.longitude;
-          initApp(userLat, userLng);
-        },
-        (error) => {
-          initApp(userLat, userLng);
-        }
-      );
-    } else {
-      initApp(userLat, userLng);
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
+        map.setView([userLat, userLng], 14);
+
+        const userIcon = L.divIcon({
+          className: 'user-location-marker',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+        L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup('<b>현재 내 위치</b>');
+      });
     }
+
+    initNationalMarkers();
 
     async function checkStock(vending) {
       resultDiv.classList.add('active');
@@ -291,9 +313,7 @@
       try {
         const response = await fetch('/api/generate', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             vendingName: vending.name,
             lat: vending.lat,
@@ -302,10 +322,7 @@
         });
 
         const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || '오류가 발생했습니다.');
-        }
+        if (!response.ok) throw new Error(data.error || '오류가 발생했습니다.');
 
         stockContent.className = 'stock-content';
         stockContent.innerHTML = data.result;
@@ -318,9 +335,7 @@
     }
 
     refreshBtn.addEventListener('click', () => {
-      if (currentSelectedVending) {
-        checkStock(currentSelectedVending);
-      }
+      if (currentSelectedVending) checkStock(currentSelectedVending);
     });
   </script>
 </body>
