@@ -9,13 +9,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '자판기 정보가 필요합니다.' });
   }
 
-  // 🔑 환경변수가 없어도 작동하도록 직접 API 키를 하드코딩할 수 있는 부분입니다.
-  // 아래 "YOUR_GEMINI_API_KEY" 자리에 실제 API 키를 넣으시면 환경변수 없이 작동합니다.
-  const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY";
+  // 🔑 Vercel 환경변수(GEMINI_API_KEY)를 우선 사용하고, 없으면 아래 따옴표 안의 하드코딩 키를 사용합니다.
+  const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 
-  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY") {
+  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
     return res.status(500).json({ 
-      error: 'API 키가 설정되지 않았습니다. api/generate.js 파일 안의 apiKey 변수에 Gemini API 키를 직접 입력해 주세요.' 
+      error: 'API 키가 설정되지 않았습니다. Vercel 환경변수(GEMINI_API_KEY)에 설정하시거나 api/generate.js 파일의 apiKey 변수에 직접 키를 입력해 주세요.' 
     });
   }
 
